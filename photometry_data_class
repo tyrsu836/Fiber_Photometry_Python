@@ -1,0 +1,113 @@
+
+# Working module for photometry class and associated functions
+import matplotlib
+import scipy.io
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.stats
+
+class Photometry:
+    #This class allows the structuring and analysis of the 'data' output from
+    #single fiber photometry run. This data look like .....
+    
+    def __init__(self,file_name,sampling_rate,base_start,base_end):
+        
+        self.sampling_rate = sampling_rate
+        self.base_start = base_start
+        self.base_end = base_end
+        self.data = import_mat_file(file_name)
+        
+        # data = ....
+        # needs structuring but i'll assume data is single vector time
+        # series of F for now
+
+    def get_sampling_rate():
+        
+        return self.sampling_rate
+
+    def detrend(self,type='linear'):
+        # detrend data by fitting linear trend to base_start to base_end and
+        # subtracting. Default fit 'type' is linear
+        
+        if type == 'linear':
+            # get mx + b of line fit to base_start:base_end
+            y = np.array(self.data[self.base_start:self.base_end])
+            x = np.linspace(self.base_start,self.base_end-1,num = self.base_end-self.base_start)
+            m,b = np.polyfit(x,y,1)
+            detrend_data = []
+            for x in range(len(self.data)):
+                detrend_data.append(self.data[x] - ((m*x)+b))
+            self.data = detrend_data
+            
+        if type == 'exponential':
+            
+            print('filter type not installed')
+            pass
+        
+        return detrend_data
+
+    def deltaF(self):
+        base_val = sum(self.data[self.base_start:self.base_end]) / len(self.data[self.base_start:self.base_end])
+        delta_data = []
+        for i in range(len(self.data)):
+            delta_data.append(self.data[i] / base_val)
+        self.data = delta_data
+        return delta_data
+
+    def avg_bins(self,bin_size):
+        #this will scan data and create interval bins, taking the average of each bin
+        bins = []
+        for i in range(0,len(self.data),bin_size):
+            try:
+                bins.append(sum(self.data[i:i+bin_size])/bin_size)
+            except:
+                bins.append('')
+        self.data = bins
+        return bins
+
+    def plot_data(self):
+        plt.plot(np.linspace(0,len(self.data),len(self.data)),self.data)
+        plt.show()
+
+def import_mat_file(file_name):
+
+    data = scipy.io.loadmat(file_name)
+    dat_field_name, sep, tail = file_name.partition('.')
+    data = transpose(data['data'])
+    data = data[0]
+    data = [round(i,2) for i in data]                                                                
+
+    return data
+
+def transpose(matrix):
+    # Flips matrix rows into columns and vice versa. Matrix should contain lists of = length,
+    # otherwise short lists will be extended with ""
+    listLength = []
+    for i in range(len(matrix)):
+        listLength.append(len(matrix[i]))
+    long = max(listLength)
+    for i in range(len(matrix)):
+        while len(matrix[i]) < long:
+            matrix[i].append("")
+    longList = []
+    for i in range(len(matrix[0])):
+        shortList = []
+        for n in range(len(matrix)):
+            shortList.append(matrix[n][i])
+        longList.append(shortList)
+    return longList
+
+def main():
+
+    test = Photometry("C:\\Users\\Keith\\Desktop\\tes.mat",100,0,12000)
+    test.plot_data()
+    test.detrend('linear')
+    test.plot_data()
+    test.avg_bins(100)
+    test.plot_data()
+    test.deltaF()
+    test.plot_data()
+
+if __name__ == "__main__":
+
+    main()
