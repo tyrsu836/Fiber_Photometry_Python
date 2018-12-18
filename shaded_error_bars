@@ -1,0 +1,67 @@
+## This works for data set up with column 1 being the group identifiers, and the rest of the columns are the fiber-photometry samples.
+#  Columns should be labelled with whatever you want the x-ais to be labelled as, 
+#  and group names from column 1 should be what you want to appear in the figure legend.
+#  The color map used (Line 42) has enough colors for up to 8 groups and the colors are from the Stanford identity color palette: https://identity.stanford.edu/color.html
+
+#  E.g of what the data should look like:
+#  Groups   -5    -4    -3    -2    -1    0   1   2   3   4   5
+#  Hcrt+    data1 data2 data3 ... etc
+#  Hcrt-    data1 data2 data3 ... etc
+#  Hcrt-    data1 data2 data3 ... etc
+#  Hcrt+    data1 data2 data3 ... etc
+
+
+# Import your relevant packages
+import pandas as pd
+import numpy as np
+import scipy
+import math
+from scipy import stats
+import matplotlib.pyplot as plt
+
+# Import your excel sheet
+df = pd.read_excel('Data.xlsx')
+
+# Visualize the data to check it looks okay
+df.head(5) 
+
+# Create a new variable with the group means
+means = df.groupby(df['Group']).agg(np.nanmean)
+num_groups = len(df.groupby('Group').nunique())
+
+# Create a new variable with the group standard errors
+stderr = df.groupby(df['Group']).agg(np.nanstd)/np.sqrt(df.groupby(df['Group']).count())
+
+# Create a new variable for your x axis 
+t = list(df.columns.values[1:])
+
+# Extract group names to use in the legend
+group_names = list(means.index)
+
+# Make a color map - Hex color IDs taken from: https://identity.stanford.edu/color.html
+colormap = ['#8c1515','#175e54','#0098db','#e98300','#53284f','#009b76','#544948','#d2c295']
+
+# plot dat shit
+fig, ax = plt.subplots(1)
+ax.plot([t[0], t[-1]],[0, 0], linestyle='dashed',color='#4d4f53', alpha=0.5) # plot a horizontal dashed grey line where dF/F = 0
+ax.plot([0, 0],[round(min(means.min(axis=1))/5)*5-5, round(max(means.max(axis=1))/5)*5+5], linestyle='dashed',color='#4d4f53', alpha=0.5) # plot a vertical dashed grey line where time = 0
+
+for i in range(0,num_groups,1):
+    ax.plot(t, means.iloc[i,:], lw=2, label=group_names[i], color=colormap[i]) # plot the mean of each group
+
+for i in range(0,num_groups,1):    
+    ax.fill_between(t, means.iloc[i,:]+stderr.iloc[i,:], means.iloc[i,:]-stderr.iloc[i,:], facecolor=colormap[i], alpha=0.2)
+    # plot the shaded error bars of each group
+
+ax.set_title(r'Title')
+ax.legend(loc='upper left') # specify placement of your legend
+ax.set_xlabel('Time Relative to Transition (seconds)') 
+plt.xticks(np.arange(t[0],t[-1],1))
+plt.figure(figsize=(40,20))
+ax.set_ylabel('dF/F (%)')
+# set axis limits (get x limits from coloumn headers and get Y axis limits by rounding the max/min values up to the nearest multiple of 5)
+ax.axis([t[0], t[-1], round(min(means.min(axis=1))/5)*5-5, round(max(means.max(axis=1))/5)*5+5]) 
+ax.grid([])
+plt.show()
+
+fig.savefig("test.png", dpi=200)
